@@ -1,0 +1,25 @@
+{
+  "name": "civitai-token-copier-ts",
+  "version": "1.1.0",
+  "type": "module",
+  "description": "Civitai Download Link Copier with Token implemented in TypeScript",
+  "main": "dist/civitai-token-copier.user.js",
+  "scripts": {
+    "build": "vite build",
+    "watch": "vite build --watch"
+  },
+  "keywords": [
+    "civitai",
+    "tampermonkey",
+    "userscript",
+    "typescript"
+  ],
+  "author": "xmsthc",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/tampermonkey": "^5.0.2",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11",
+    "vite-plugin-monkey": "^4.0.0"
+  }
+}
