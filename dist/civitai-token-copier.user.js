@@ -98,14 +98,54 @@
     }
   }
   function getTargetDownloadUrl() {
+    const allButtons = Array.from(document.querySelectorAll("a, button"));
+    const downloadSelectedEl = allButtons.find((el) => {
+      const txt = (el.textContent || "").trim();
+      return /Download Selected/i.test(txt) || /下载所选/i.test(txt);
+    });
+    if (downloadSelectedEl && !isPaidOrLocked(downloadSelectedEl)) {
+      if (downloadSelectedEl instanceof HTMLAnchorElement && downloadSelectedEl.href) {
+        console.log("[Civitai Debug] 从 Download Selected (A) 提取到链接:", downloadSelectedEl.href);
+        return downloadSelectedEl.href;
+      }
+      const parentA = downloadSelectedEl.closest('a[href*="/api/download/models/"]');
+      if (parentA && parentA.href) {
+        console.log("[Civitai Debug] 从 Download Selected (Parent A) 提取到链接:", parentA.href);
+        return parentA.href;
+      }
+      const innerA = downloadSelectedEl.querySelector('a[href*="/api/download/models/"]');
+      if (innerA && innerA.href) {
+        console.log("[Civitai Debug] 从 Download Selected (Inner A) 提取到链接:", innerA.href);
+        return innerA.href;
+      }
+    }
+    const checkedIcons = document.querySelectorAll('svg.tabler-icon-check, [data-checked="true"], [aria-selected="true"]');
+    for (const icon of Array.from(checkedIcons)) {
+      const row = icon.closest('div, tr, li, [class*="mantine"]') || icon.parentElement;
+      if (row) {
+        const rowDownloadLink = row.querySelector('a[href*="/api/download/models/"]');
+        if (rowDownloadLink && rowDownloadLink.href && !isPaidOrLocked(rowDownloadLink)) {
+          console.log("[Civitai Debug] 从勾选行中定位到下载链接:", rowDownloadLink.href);
+          return rowDownloadLink.href;
+        }
+      }
+    }
     const allDownloadLinks = Array.from(
       document.querySelectorAll('a[href*="/api/download/models/"]')
     );
     const validLinks = allDownloadLinks.filter((a) => !isPaidOrLocked(a));
     if (validLinks.length > 0) {
-      const withFileId = validLinks.find((a) => a.href.includes("fileId="));
-      if (withFileId) {
-        return withFileId.href;
+      if (downloadSelectedEl) {
+        const nearLink = validLinks.find((a) => downloadSelectedEl.contains(a) || a.contains(downloadSelectedEl));
+        if (nearLink) {
+          return nearLink.href;
+        }
+      }
+      const nonRowLink = validLinks.find(
+        (a) => a.textContent && /Download/i.test(a.textContent)
+      );
+      if (nonRowLink) {
+        return nonRowLink.href;
       }
       return validLinks[0].href;
     }

@@ -97,17 +97,73 @@ function buildApiUrl(rawUrl: string, token: string): string {
  * 获取当前准确的下载链接（严格过滤掉付费/未购买的按钮）
  */
 function getTargetDownloadUrl(): string | null {
+  // 1. 最高优先级：从底部的“Download Selected”按钮获取当前选中的真实链接
+  // 查找包含 "Download Selected" 或 "下载所选" 的按钮/超链接
+  const allButtons = Array.from(document.querySelectorAll<HTMLElement>('a, button'));
+  const downloadSelectedEl = allButtons.find((el) => {
+    const txt = (el.textContent || '').trim();
+    return /Download Selected/i.test(txt) || /下载所选/i.test(txt);
+  });
+
+  if (downloadSelectedEl && !isPaidOrLocked(downloadSelectedEl)) {
+    // 如果它本身就是 <a> 标签且有 href
+    if (downloadSelectedEl instanceof HTMLAnchorElement && downloadSelectedEl.href) {
+      console.log('[Civitai Debug] 从 Download Selected (A) 提取到链接:', downloadSelectedEl.href);
+      return downloadSelectedEl.href;
+    }
+    // 如果它内部或者最近的父级是 <a> 标签
+    const parentA = downloadSelectedEl.closest<HTMLAnchorElement>('a[href*="/api/download/models/"]');
+    if (parentA && parentA.href) {
+      console.log('[Civitai Debug] 从 Download Selected (Parent A) 提取到链接:', parentA.href);
+      return parentA.href;
+    }
+    const innerA = downloadSelectedEl.querySelector<HTMLAnchorElement>('a[href*="/api/download/models/"]');
+    if (innerA && innerA.href) {
+      console.log('[Civitai Debug] 从 Download Selected (Inner A) 提取到链接:', innerA.href);
+      return innerA.href;
+    }
+  }
+
+  // 2. 次高优先级：从下拉列表/卡片中带有“选中”状态（勾选状态）的行中寻找下载链接
+  // 截图中的特征：选中的行左侧有绿色对勾 SVG（如 tabler-icon-check 或含有 check 的 SVG / 选中背景）
+  const checkedIcons = document.querySelectorAll('svg.tabler-icon-check, [data-checked="true"], [aria-selected="true"]');
+  for (const icon of Array.from(checkedIcons)) {
+    const row = icon.closest('div, tr, li, [class*="mantine"]') || icon.parentElement;
+    if (row) {
+      const rowDownloadLink = row.querySelector<HTMLAnchorElement>('a[href*="/api/download/models/"]');
+      if (rowDownloadLink && rowDownloadLink.href && !isPaidOrLocked(rowDownloadLink)) {
+        console.log('[Civitai Debug] 从勾选行中定位到下载链接:', rowDownloadLink.href);
+        return rowDownloadLink.href;
+      }
+    }
+  }
+
+  // 3. 页面直接存在的主下载链接 a[href*="/api/download/models/"]
+  // 如果当前只有一个主下载按钮（非列表），直接采用
   const allDownloadLinks = Array.from(
     document.querySelectorAll<HTMLAnchorElement>('a[href*="/api/download/models/"]')
   );
-
   const validLinks = allDownloadLinks.filter((a) => !isPaidOrLocked(a));
 
   if (validLinks.length > 0) {
-    const withFileId = validLinks.find((a) => a.href.includes('fileId='));
-    if (withFileId) {
-      return withFileId.href;
+    // 如果其中包含了与 Download Selected 按钮相邻的链接
+    if (downloadSelectedEl) {
+      const nearLink = validLinks.find((a) => downloadSelectedEl.contains(a) || a.contains(downloadSelectedEl));
+      if (nearLink) {
+        return nearLink.href;
+      }
     }
+
+    // 默认选用最后一个或根据上下文（避免总是取到列表第 1 个 bf16）
+    // 如果用户展开了列表，此时会有多个下载小图标（每行右侧一个），
+    // 列表外的那个通常是主 Download 按钮
+    const nonRowLink = validLinks.find(
+      (a) => a.textContent && /Download/i.test(a.textContent)
+    );
+    if (nonRowLink) {
+      return nonRowLink.href;
+    }
+
     return validLinks[0].href;
   }
 
