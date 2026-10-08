@@ -1,7 +1,7 @@
 import './style.css';
 
 /**
- * Civitai Download Link Copier with Token
+ * civitai-helper — Civitai 模型下载直链获取器
  * TypeScript Implementation
  *
  * 核心逻辑：

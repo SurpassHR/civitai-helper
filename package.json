@@ -1,15 +1,17 @@
 {
-  "name": "civitai-token-copier-ts",
-  "version": "1.1.0",
+  "name": "civitai-helper",
+  "version": "2.0.0",
   "type": "module",
-  "description": "Civitai Download Link Copier with Token implemented in TypeScript",
-  "main": "dist/civitai-token-copier.user.js",
+  "description": "Resolve and copy the real Civitai model download direct link (with the original filename) — TypeScript userscript",
+  "main": "dist/civitai-helper.user.js",
   "scripts": {
     "build": "vite build",
     "watch": "vite build --watch"
   },
   "keywords": [
     "civitai",
+    "civitai-download",
+    "direct-link",
     "tampermonkey",
     "userscript",
     "typescript"

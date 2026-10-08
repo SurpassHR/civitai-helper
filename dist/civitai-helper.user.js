@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Civitai 带Token下载链接复制器
-// @namespace    https://github.com/civitai-token-downloader
-// @version      1.3.0
+// @name         Civitai 模型下载直链获取器
+// @namespace    https://github.com/SurpassHR/civitai-helper
+// @version      2.0.0
 // @author       xmsthc
 // @description  在 Civitai 模型下载页面原生融合「复制带Token链接」按钮，解析并复制带实际文件名的 B2 直链
 // @license      MIT
