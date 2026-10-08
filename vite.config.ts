@@ -8,7 +8,7 @@ export default defineConfig({
       userscript: {
         name: 'Civitai 模型下载直链获取器',
         namespace: 'https://github.com/SurpassHR/civitai-helper',
-        version: '2.0.0',
+        version: '2.1.0',
         description: '在 Civitai 模型下载页面原生融合「复制带Token链接」按钮，解析并复制带实际文件名的 B2 直链',
         author: 'xmsthc',
         match: [

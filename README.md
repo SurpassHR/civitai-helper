@@ -20,6 +20,9 @@
   支持官方站点 `civitai.com`，以及 Civitai 的分站 `civitai.red`。
 
   > ⚠️ 说明：`civitai.red` **不是镜像站 / 加速站**，而是 Civitai 的独立分站，主要承载成人（NSFW）内容。
+- **图像原始文件名角标**：
+  在图片浏览页 / 详情页中，自动在每张图像左上角叠加显示上传时的原始文件名（如 `Imagen_00133_.png`）。
+  由于 Civitai 卡片图片的 `src` 是 CDN 优化后的 `.jpeg`，而 `alt` 保留了原始扩展名，借助角标可一眼区分原始 PNG 与优化版 JPEG，快速判断该图是否值得下载原图提取 ComfyUI 工作流。
 
 ---
 

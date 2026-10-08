@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Civitai 模型下载直链获取器
 // @namespace    https://github.com/SurpassHR/civitai-helper
-// @version      2.0.0
+// @version      2.1.0
 // @author       xmsthc
 // @description  在 Civitai 模型下载页面原生融合「复制带Token链接」按钮，解析并复制带实际文件名的 B2 直链
 // @license      MIT
@@ -25,7 +25,7 @@
 // @run-at       document-end
 // ==/UserScript==
 
-(t=>{if(typeof GM_addStyle=="function"){GM_addStyle(t);return}const o=document.createElement("style");o.textContent=t,document.head.append(o)})(" .civitai-token-btn-wrapper{display:flex;width:100%;margin-top:8px;box-sizing:border-box}.civitai-copy-btn{width:100%;height:38px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;background-color:#1971c2;color:#fff!important;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;line-height:1;border-radius:6px;border:1px solid transparent;cursor:pointer;text-decoration:none!important;-webkit-user-select:none;user-select:none;box-sizing:border-box;transition:background-color .15s ease,transform .1s ease}.civitai-copy-btn:hover{background-color:#1864ab}.civitai-copy-btn:active{transform:translateY(1px)}.civitai-copy-btn.copied{background-color:#2f9e44!important}.civitai-copy-btn svg{width:17px;height:17px;fill:currentColor;flex-shrink:0}@keyframes civitai-spin{0%{transform:rotate(0)}to{transform:rotate(360deg)}}.civitai-tm-toast{position:fixed;bottom:24px;right:24px;background-color:#25262b;color:#c1c2c5;padding:10px 16px;border-radius:6px;box-shadow:0 8px 20px #00000073;border:1px solid #373a40;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;z-index:9999999;opacity:0;transform:translateY(8px);transition:opacity .2s ease,transform .2s ease;pointer-events:none}.civitai-tm-toast.show{opacity:1;transform:translateY(0)}.civitai-tm-toast.success{border-left:4px solid #40c057;color:#e6fcf5}.civitai-tm-toast.info{border-left:4px solid #339af0;color:#e7f5ff}.civitai-tm-toast.warning{border-left:4px solid #fab005;color:#fff9db} ");
+(t=>{if(typeof GM_addStyle=="function"){GM_addStyle(t);return}const o=document.createElement("style");o.textContent=t,document.head.append(o)})(" .civitai-token-btn-wrapper{display:flex;width:100%;margin-top:8px;box-sizing:border-box}.civitai-copy-btn{width:100%;height:38px;padding:0 16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;background-color:#1971c2;color:#fff!important;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;font-weight:600;line-height:1;border-radius:6px;border:1px solid transparent;cursor:pointer;text-decoration:none!important;-webkit-user-select:none;user-select:none;box-sizing:border-box;transition:background-color .15s ease,transform .1s ease}.civitai-copy-btn:hover{background-color:#1864ab}.civitai-copy-btn:active{transform:translateY(1px)}.civitai-copy-btn.copied{background-color:#2f9e44!important}.civitai-copy-btn svg{width:17px;height:17px;fill:currentColor;flex-shrink:0}@keyframes civitai-spin{0%{transform:rotate(0)}to{transform:rotate(360deg)}}.civitai-tm-toast{position:fixed;bottom:24px;right:24px;background-color:#25262b;color:#c1c2c5;padding:10px 16px;border-radius:6px;box-shadow:0 8px 20px #00000073;border:1px solid #373a40;font-size:13px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;z-index:9999999;opacity:0;transform:translateY(8px);transition:opacity .2s ease,transform .2s ease;pointer-events:none}.civitai-tm-toast.show{opacity:1;transform:translateY(0)}.civitai-tm-toast.success{border-left:4px solid #40c057;color:#e6fcf5}.civitai-tm-toast.info{border-left:4px solid #339af0;color:#e7f5ff}.civitai-tm-toast.warning{border-left:4px solid #fab005;color:#fff9db}.civitai-helper-filename{position:absolute;top:6px;left:6px;z-index:30;max-width:calc(100% - 12px);padding:1px 8px;background-color:#000000a6;color:#fff;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:12px;font-weight:500;line-height:18px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)} ");
 
 (function () {
   'use strict';
@@ -344,14 +344,97 @@
       }
     }
   }
+  const IMAGE_FILE_EXT_RE = /\.(png|jpe?g|jfif|webp|gif|bmp|avif|tiff?|mp4|webm)$/i;
+  const filenameBadges = /* @__PURE__ */ new WeakMap();
+  const filenameApplied = /* @__PURE__ */ new WeakMap();
+  function looksLikeFileName(text) {
+    const t = text.trim();
+    return t.length > 1 && t.length <= 150 && IMAGE_FILE_EXT_RE.test(t) && !t.includes("/") && !t.includes("\\");
+  }
+  function extractFileNameFromUrl(url) {
+    try {
+      const last = new URL(url, window.location.origin).pathname.split("/").filter(Boolean).pop() || "";
+      const seg = decodeURIComponent(last);
+      return looksLikeFileName(seg) ? seg : null;
+    } catch {
+      return null;
+    }
+  }
+  function getImageFileName(img) {
+    const alt = (img.getAttribute("alt") || "").trim();
+    if (looksLikeFileName(alt)) {
+      return alt;
+    }
+    if (img.closest('a[href*="/images/"]')) {
+      return extractFileNameFromUrl(img.currentSrc || img.src || "");
+    }
+    return null;
+  }
+  function applyFilenameBadge(img, name) {
+    const parent = img.parentElement;
+    if (!parent) return;
+    const host = parent.tagName === "PICTURE" && parent.parentElement ? parent.parentElement : parent;
+    let badge = filenameBadges.get(img);
+    if (badge && badge.parentElement !== host) {
+      badge.remove();
+      badge = void 0;
+    }
+    if (!badge) {
+      if (getComputedStyle(host).position === "static") {
+        host.style.position = "relative";
+      }
+      badge = document.createElement("span");
+      badge.className = "civitai-helper-filename";
+      host.appendChild(badge);
+      filenameBadges.set(img, badge);
+    }
+    if (badge.textContent !== name) {
+      badge.textContent = name;
+      badge.title = name;
+    }
+  }
+  function enhanceImageFilenames() {
+    const imgs = document.querySelectorAll('img[alt], a[href*="/images/"] img');
+    for (const img of Array.from(imgs)) {
+      const name = getImageFileName(img);
+      if (!name) {
+        if (filenameApplied.has(img)) {
+          filenameApplied.delete(img);
+          const stale = filenameBadges.get(img);
+          if (stale) {
+            stale.remove();
+            filenameBadges.delete(img);
+          }
+        }
+        continue;
+      }
+      if (filenameApplied.get(img) === name) continue;
+      filenameApplied.set(img, name);
+      applyFilenameBadge(img, name);
+    }
+  }
+  let filenameEnhanceScheduled = false;
+  function scheduleImageFilenameEnhance() {
+    if (filenameEnhanceScheduled) return;
+    filenameEnhanceScheduled = true;
+    requestAnimationFrame(() => {
+      filenameEnhanceScheduled = false;
+      enhanceImageFilenames();
+    });
+  }
   autoInject();
+  enhanceImageFilenames();
   const observer = new MutationObserver(() => {
     autoInject();
+    scheduleImageFilenameEnhance();
   });
   observer.observe(document.documentElement, {
     childList: true,
     subtree: true
   });
-  setInterval(autoInject, 800);
+  setInterval(() => {
+    autoInject();
+    enhanceImageFilenames();
+  }, 800);
 
 })();

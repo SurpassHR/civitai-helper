@@ -1,6 +1,6 @@
 {
   "name": "civitai-helper",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "type": "module",
   "description": "Resolve and copy the real Civitai model download direct link (with the original filename) — TypeScript userscript",
   "main": "dist/civitai-helper.user.js",

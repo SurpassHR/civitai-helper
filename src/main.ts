@@ -8,6 +8,8 @@ import './style.css';
  * 1. 自动过滤未购买/未付费（⚡Buzz）模型；
  * 2. 携带用户 Token 通过极轻量 HEAD 请求从 307 重定向中解析出带正确文件名的 B2 直链；
  * 3. 界面精简：去除多余的齿轮设置按钮，首次点击未设置时自动弹窗引导输入；后续如需修改可随时通过油猴脚本菜单修改。
+ * 4. 图像文件名角标：在图片浏览页/详情页的图像左上角叠加显示上传时的原始文件名（如 Imagen_00133_.png），
+ *    便于一眼区分原始 PNG 与 CDN 优化后的 JPEG，快速判断图像是否值得下载原图提取 ComfyUI 工作流。
  */
 
 type ToastType = 'success' | 'warning' | 'info';
@@ -401,10 +403,118 @@ function autoInject(): void {
   }
 }
 
+/* ==================== 图像文件名角标 ==================== */
+
+/** 原始文件名后缀白名单（含视频缩略图） */
+const IMAGE_FILE_EXT_RE = /\.(png|jpe?g|jfif|webp|gif|bmp|avif|tiff?|mp4|webm)$/i;
+
+/** img 元素 -> 当前挂载的文件名角标 */
+const filenameBadges = new WeakMap<HTMLImageElement, HTMLElement>();
+/** img 元素 -> 上次解析到的文件名（React 复用节点时可感知变化） */
+const filenameApplied = new WeakMap<HTMLImageElement, string>();
+
+function looksLikeFileName(text: string): boolean {
+  const t = text.trim();
+  return t.length > 1 && t.length <= 150 && IMAGE_FILE_EXT_RE.test(t) && !t.includes('/') && !t.includes('\\');
+}
+
+/** 从 Civitai CDN 链接末段提取文件名（兜底用） */
+function extractFileNameFromUrl(url: string): string | null {
+  try {
+    const last = new URL(url, window.location.origin).pathname.split('/').filter(Boolean).pop() || '';
+    const seg = decodeURIComponent(last);
+    return looksLikeFileName(seg) ? seg : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 解析图像对应的原始文件名：
+ * 优先取 alt —— Civitai 图片卡片会把上传时的原始文件名写入 alt（如 Imagen_00133_.png），
+ * 而 src 往往是 CDN 优化后的 .jpeg，无法反映原始扩展名；
+ * 兜底：仅在图片卡片上下文（链接指向 /images/ 详情页）中取 CDN 链接末段。
+ */
+function getImageFileName(img: HTMLImageElement): string | null {
+  const alt = (img.getAttribute('alt') || '').trim();
+  if (looksLikeFileName(alt)) {
+    return alt;
+  }
+  if (img.closest('a[href*="/images/"]')) {
+    return extractFileNameFromUrl(img.currentSrc || img.src || '');
+  }
+  return null;
+}
+
+/** 在图像左上角创建/更新文件名角标 */
+function applyFilenameBadge(img: HTMLImageElement, name: string): void {
+  const parent = img.parentElement;
+  if (!parent) return;
+  // <picture> 只是包装层，角标挂到其外层容器上更稳妥
+  const host = parent.tagName === 'PICTURE' && parent.parentElement ? parent.parentElement : parent;
+
+  let badge = filenameBadges.get(img);
+  if (badge && badge.parentElement !== host) {
+    // 节点被移动到其他容器（如打开大图），重建角标
+    badge.remove();
+    badge = undefined;
+  }
+  if (!badge) {
+    if (getComputedStyle(host).position === 'static') {
+      host.style.position = 'relative';
+    }
+    badge = document.createElement('span');
+    badge.className = 'civitai-helper-filename';
+    host.appendChild(badge);
+    filenameBadges.set(img, badge);
+  }
+  if (badge.textContent !== name) {
+    badge.textContent = name;
+    badge.title = name;
+  }
+}
+
+/** 扫描页面上的图像并补全文件名角标 */
+function enhanceImageFilenames(): void {
+  const imgs = document.querySelectorAll<HTMLImageElement>('img[alt], a[href*="/images/"] img');
+  for (const img of Array.from(imgs)) {
+    const name = getImageFileName(img);
+    if (!name) {
+      // 节点被 React 复用成头像等非内容图像时，移除遗留角标
+      if (filenameApplied.has(img)) {
+        filenameApplied.delete(img);
+        const stale = filenameBadges.get(img);
+        if (stale) {
+          stale.remove();
+          filenameBadges.delete(img);
+        }
+      }
+      continue;
+    }
+    if (filenameApplied.get(img) === name) continue;
+    filenameApplied.set(img, name);
+    applyFilenameBadge(img, name);
+  }
+}
+
+let filenameEnhanceScheduled = false;
+
+/** 以 rAF 节流，避免无限滚动页面里 MutationObserver 高频触发 */
+function scheduleImageFilenameEnhance(): void {
+  if (filenameEnhanceScheduled) return;
+  filenameEnhanceScheduled = true;
+  requestAnimationFrame(() => {
+    filenameEnhanceScheduled = false;
+    enhanceImageFilenames();
+  });
+}
+
 autoInject();
+enhanceImageFilenames();
 
 const observer = new MutationObserver(() => {
   autoInject();
+  scheduleImageFilenameEnhance();
 });
 
 observer.observe(document.documentElement, {
@@ -412,4 +522,7 @@ observer.observe(document.documentElement, {
   subtree: true,
 });
 
-setInterval(autoInject, 800);
+setInterval(() => {
+  autoInject();
+  enhanceImageFilenames();
+}, 800);

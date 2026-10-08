@@ -96,3 +96,26 @@
   border-left: 4px solid #fab005;
   color: #fff9db;
 }
+
+/* 图像左上角的原始文件名角标 */
+.civitai-helper-filename {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 30;
+  max-width: calc(100% - 12px);
+  padding: 1px 8px;
+  background-color: rgba(0, 0, 0, 0.65);
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
